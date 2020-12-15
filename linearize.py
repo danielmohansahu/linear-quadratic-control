@@ -45,6 +45,8 @@ Times = np.arange(0,120,1e-3)
 IC = np.array([0,1e-3,0,5e-5,0,1e-4])
 Q = np.diag([1,100,1,10,1,10])
 R = 0.001
+# Q = np.diag([1000,1,100000,1,10000,1])
+# R = 1.0e-5
 
 if __name__ == "__main__":
     ###############################################################################################
@@ -171,6 +173,11 @@ if __name__ == "__main__":
         plt.legend(["Linear X","Linear Theta1","Linear Theta2", "Nonlinear X", "Nonlinear Theta1", "Nonlinear Theta2"])
         plt.show()
 
+    # check that eigenvalues of the linearized closed loop system are all in the LHP
+    eigenvalues = np.linalg.eig(A-B*K)[0]
+    assert(np.all(eigenvalues < 0))
+    print("The linearized closed loop system is locally asymptotically stable.")
+
     ###############################################################################################
     ######################################## Part E ###############################################
     ###############################################################################################
@@ -179,20 +186,20 @@ if __name__ == "__main__":
     Potentials = [
         sym.Matrix([
             [1,0,0,0,0,0],  # x
-        ]).T,
+        ]),
         sym.Matrix([
             [0,0,1,0,0,0],  # t1
             [0,0,0,0,1,0]   # t2
-        ]).T,
+        ]),
         sym.Matrix([
             [1,0,0,0,0,0],  # x
             [0,0,0,0,1,0]   # t2
-        ]).T,
+        ]),
         sym.Matrix([
             [1,0,0,0,0,0],  # x
             [0,0,1,0,0,0],  # t1
             [0,0,0,0,1,0]   # t2
-        ]).T
+        ])
     ]
     Observables = []
     for i,c in enumerate(Potentials):
@@ -201,13 +208,39 @@ if __name__ == "__main__":
 
         obs = sym.Matrix(c)
         for j in range(1,6):
-            obs = obs.row_join((A_temp.T)**j * c)
+            obs = obs.col_join(c*(A_temp)**j)
         
         if obs.rank() == 6:
             print("Potential C matrix #{} is observable. Rank: {}".format(i+1, obs.rank()))
             Observables.append(sym.Matrix(c))
         else:
             print("Potential C matrix #{} is NOT observable. Rank: {}".format(i+1, obs.rank()))
+
+    ###############################################################################################
+    ######################################## Part F ###############################################
+    ###############################################################################################
+
+    # construct desired poles (order of magnitude larger than controller eigenvalues)
+    s = sym.Symbol("s")
+    observer_poles = 1
+    for eig in eigenvalues:
+        observer_poles *= (s - eig)
+
+    # obtain observers for each output vector
+    for i,C in enumerate(Observables):
+        # place poles of A-LC an order of magnitude farther left than the controller poles
+        L = sym.Matrix(sym.MatrixSymbol("L",C.shape[1],C.shape[0]))
+
+        # solve for characteristic equation
+        CE = (A - L*C).charpoly(s) - observer_poles
+
+        # solve for the Luenburg Observer
+        L = L.subs(sym.solve(CE,L))
+
+        print("Found observer for potential C matrix #{}".format(i+1))
+
+        # simulate the response
+
 
     ###############################################################################################
     ##################################### Interaction #############################################
