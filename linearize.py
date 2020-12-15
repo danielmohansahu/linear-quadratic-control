@@ -177,29 +177,37 @@ if __name__ == "__main__":
 
     # examine the observability of various different C matrices
     Potentials = [
-        [1,0,0,0,0,0],  # x
-        [0,0,1,0,1,0],  # t1, t2
-        [1,0,0,0,1,0],  # x, t2
-        [1,0,1,0,1,0],  # x, t1, t2
+        sym.Matrix([
+            [1,0,0,0,0,0],  # x
+        ]).T,
+        sym.Matrix([
+            [0,0,1,0,0,0],  # t1
+            [0,0,0,0,1,0]   # t2
+        ]).T,
+        sym.Matrix([
+            [1,0,0,0,0,0],  # x
+            [0,0,0,0,1,0]   # t2
+        ]).T,
+        sym.Matrix([
+            [1,0,0,0,0,0],  # x
+            [0,0,1,0,0,0],  # t1
+            [0,0,0,0,1,0]   # t2
+        ]).T
     ]
     Observables = []
     for i,c in enumerate(Potentials):
         # check determinant of full system
-        c_temp = sym.Matrix(c)
         A_temp = sym.Matrix(A)
 
         obs = sym.Matrix(c)
         for j in range(1,6):
-            obs = obs.row_join((A_temp.T)**j * c_temp)
-
-        if verbose:
-            print("Potential has rank: {}, det: {}".format(obs.rank(), obs.det()))
+            obs = obs.row_join((A_temp.T)**j * c)
         
-        if obs.det() != 0:
-            print("Potential C matrix #{} is observable. Det: {}".format(i+1, obs.det()))
+        if obs.rank() == 6:
+            print("Potential C matrix #{} is observable. Rank: {}".format(i+1, obs.rank()))
             Observables.append(sym.Matrix(c))
         else:
-            print("Potential C matrix #{} is NOT observable. Det: {}".format(i+1, obs.det()))
+            print("Potential C matrix #{} is NOT observable. Rank: {}".format(i+1, obs.rank()))
 
     ###############################################################################################
     ##################################### Interaction #############################################
