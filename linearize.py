@@ -239,7 +239,32 @@ if __name__ == "__main__":
 
         print("Found observer for potential C matrix #{}".format(i+1))
 
+
         # simulate the response
+        xhat = np.zeros((6,1))
+        C = np.array(C)
+        L = np.array(L)
+        def resp(times, state, xhat):
+            """ Return the derivative of the state, using an observer.
+            """ 
+            # calculate actual response
+            y = C@state
+            x = A@state - ((B*K)@xhat).T
+
+            yhat = C@xhat;
+            xhat = (A - B@K)@xhat + L@(y - yhat)
+            return x[0]
+
+        observed = scipy.integrate.solve_ivp(resp, [Times[0],Times[-1]], IC, args=(xhat,))
+
+        # plot the results
+        plt.plot(observed.t, observed.y[0,:], '--b')
+        plt.plot(observed.t, observed.y[2,:], '--r')
+        plt.plot(observed.t, observed.y[4,:], '--k')
+
+        plt.grid(True)
+        plt.legend(["Linear X","Linear Theta1","Linear Theta2"])
+        plt.show()
 
 
     ###############################################################################################
