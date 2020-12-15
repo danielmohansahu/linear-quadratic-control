@@ -1,5 +1,6 @@
 clc
 clear all
+%%%PART 1%%%
 syms th1 th2 L1 L2  M m1 m2 F x xd xdd th1d th1dd th2d th2dd g
 %%%%%Kinematics%%%%
 KEM = .5*M*xd^2;
@@ -77,9 +78,9 @@ A2B = AF^2*BF;
 A3B = AF^3*BF;
 A4B = AF^4*BF;
 A5B = AF^5*BF;
-M = [BF AB A2B A3B A4B A5B]
-rM = rank(M)
-dM = simplify(det(M))
+M = [BF AB A2B A3B A4B A5B];
+rM = rank(M);
+dM = simplify(det(M));
 %Controllable if L1 != L2
 %%%%Check Controllablity with values%%%%
 M = 1000;
@@ -91,25 +92,25 @@ L2 = 10;
 AF = [0, 1, 0, 0, 0, 0; 0, 0, -(g*m1)/M, 0, -(g*m2)/M, 0;0, 0, 0, 1, 0, 0;0, 0, -g/L1-(g*m1)/(L1*M), 0, -(g*m2)/(L1*M), 0;0, 0, 0, 0, 0, 1;0, 0,  -(g*m1)/(L2*M), 0, -g/L2-(g*m2)/(L2*M), 0]
 BF = [0; 1/M; 0; 1/(L1*M); 0; 1/(L2*M)]
 C = [1 0 0 0 0 0;0 0 1 0 0 0;0 0 0 0 1 0];
-At = transpose(AF);
-Bt = transpose(BF);
-R = .01*1.0e-03;
-Ri = inv(R);
-Q = eye(6,6);
-Q(:,1) = Q(:,1)*1*1.0e03;
-Q(:,3) = Q(:,3)*100*1.0e03;
-Q(:,5) = Q(:,5)*10*1.0e03
-poles = eig(AF)
+Co = ctrb(AF,BF);
+unco = length(AF) - rank(Co)
+%The system is controllable
+%%%%%LQR Controller%%%%%
+R = .1*1.0e-03
+Q = [1 0 0 0 0 0;
+     0 .5 0 0 0 0;
+     0 0 1000 0 0 0;
+     0 0 0 500 0 0;
+     0 0 0 0 1000 0;
+     0 0 0 0 0 500]
 K = lqr(AF,BF,Q,R)
 
-Ac = [(AF-BF*K)];
-Bc = [BF];
+Ac = [(AF-BF*K)]
+Bc = [BF]
 Cc = [C];
 Dc = [0;0;0];
-damp(Ac)
-eig_Ac = eig(Ac)
 x0 = [.1 0 .1 0 .1 0];
-t = 0:0.1:50;
+t = 0:0.1:70;
 u = zeros(size(t));
 [y,x] =lsim(Ac,Bc,Cc,Dc,u,t,x0);
 figure(1)
@@ -127,19 +128,23 @@ plot(t,y)
 %dx(5) = x(6)
 %dx(6) = -(10*sin(x(5)))/10 - (cos(x(5))*(20*100*sin(x(3))*x(4)^2 + 10*100*sin(x(5))*x(6)^2 - F + 10*100*cos(x(3))*sin(x(3)) + 10*100*cos(x(5))*sin(x(5))))/(10*(- 100*cos(x(3))^2 - 100*cos(x(6))^2 + 1000 + 100 + 100))
 %end
+%%%%%Lyapunov Stability of CL System%%%%%
+Ac_Eig = eig(Ac)
+% All Eigenvalues are negative so the CL system is at least locally stable
+%%%PART 2%%%
 %%%%Observability%%%%%
-Ax = [AF(:,1:2), zeros(6,4)];
-Ath12 = [zeros(6,2),AF(:,3:4),AF(:,5:6)];
-Axth2 = [AF(:,1:2),zeros(6,2),AF(:,5:6)];
-Cx = [C(1,:); zeros(2,6)];
-Cth12 = [C(2,:);C(3,:);zeros(1,6)];
-Cxth2 = [C(1,:);zeros(1,6);C(3,:)];
-Obx = obsv(Ax,Cx);
-Obth12 = obsv(Ath12,Cth12);
-Obxth2 = obsv(Axth2,Cxth2);
-Ob = obsv(AF,C);
-unobx = length(Ax)-rank(Obx)
-unobth12 = length(Ath12)-rank(Obth12)
-unobxth2 = length(Axth2)-rank(Obxth2)
-unob = length(AF)-rank(Ob)
+Cx = [1 0 0 0 0 0];
+Cth12 = [0 0 1 0 1 0];
+Cxth2 = [1 0 0 0 1 0];
+Obx = obsv(Ac,Cx);
+Obth12 = obsv(Ac,Cth12);
+Obxth2 = obsv(Ac,Cxth2);
+Ob = obsv(Ac,C);
+unobx = length(Ac)-rank(Obx)
+unobth12 = length(Ac)-rank(Obth12)
+unobxth2 = length(Ac)-rank(Obxth2)
+unob = length(Ac)-rank(Ob)
 % The linearized system is observable only for x,th1,th2
+%%%%%Luenberger Observer%%%%%
+%Lx = place(Ac',Cx',P)'
+%Acex = (Ac-L*Cx)
