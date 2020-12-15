@@ -189,8 +189,8 @@ if __name__ == "__main__":
         A_temp = sym.Matrix(A)
 
         obs = sym.Matrix(c)
-        for i in range(1,6):
-            obs = obs.row_join((A_temp.T)**i * c_temp)
+        for j in range(1,6):
+            obs = obs.row_join((A_temp.T)**j * c_temp)
 
         if verbose:
             print("Potential has rank: {}, det: {}".format(obs.rank(), obs.det()))
