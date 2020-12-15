@@ -224,7 +224,7 @@ if __name__ == "__main__":
     s = sym.Symbol("s")
     observer_poles = 1
     for eig in eigenvalues:
-        observer_poles *= (s - eig)
+        observer_poles *= (s - np.complex(2*sym.re(eig), sym.im(eig)))
 
     # obtain observers for each output vector
     for i,C in enumerate(Observables):
@@ -235,18 +235,19 @@ if __name__ == "__main__":
         CE = (A - L*C).charpoly(s) - observer_poles
 
         # solve for the Luenburg Observer
-        L = L.subs(sym.solve(CE,L))
-
+        L = sym.re(L.subs(sym.solve(CE,L)))
         print("Found observer for potential C matrix #{}".format(i+1))
-
 
         # simulate the response
         xhat = np.zeros((6,1))
         C = np.array(C)
         L = np.array(L)
-        def resp(times, state, xhat):
+        def resp(times, state):
             """ Return the derivative of the state, using an observer.
             """ 
+            # why not nonlocal?
+            global xhat
+
             # calculate actual response
             y = C@state
             x = A@state - ((B*K)@xhat).T
@@ -255,7 +256,7 @@ if __name__ == "__main__":
             xhat = (A - B@K)@xhat + L@(y - yhat)
             return x[0]
 
-        observed = scipy.integrate.solve_ivp(resp, [Times[0],Times[-1]], IC, args=(xhat,))
+        observed = scipy.integrate.solve_ivp(resp, [Times[0],Times[-1]], IC)
 
         # plot the results
         plt.plot(observed.t, observed.y[0,:], '--b')
