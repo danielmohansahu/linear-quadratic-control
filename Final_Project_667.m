@@ -104,7 +104,7 @@ Q = [1 0 0 0 0 0;
      0 0 0 0 1000 0;
      0 0 0 0 0 500]
 K = lqr(AF,BF,Q,R)
-
+BFK = BF*K
 Ac = [(AF-BF*K)]
 Bc = [BF]
 Cc = [C];
@@ -113,38 +113,106 @@ x0 = [.1 0 .1 0 .1 0];
 t = 0:0.1:70;
 u = zeros(size(t));
 [y,x] =lsim(Ac,Bc,Cc,Dc,u,t,x0);
-figure(1)
-plot(t,y)
+%figure(1)
+%plot(t,y)
 %%%%Nonlinear Reponse%%%%
-%x0 = [0.1, 0.1, 0.1];
-%[T,X] = ode45(@pen,[0,20],[30,0]);
-%plot(T,X(:,1),'-',T,X(:,2),'-',T,X(:,3),'-',T,X(:,4),'-',T,X(:,5),'-',T,X(:,6),'-')
-%function dx = pen(~,x)
-%dx = zeros(6,1); % column vector
-%dx(1) = x(2);
-%dx(2) = -(20*100*sin(x(3))*x(4)^2 + 10*100*sin(x(5))*x(6)^2 - F + 10*100*cos(x(3))*sin(x(3)) + 10*100*cos(x(5))*sin(x(5)))/(-100*cos(x(3))^2 - 100*cos(x(5))^2 + 1000 +100 + 100);
-%dx(3) = x(4)
-%dx(4) = -(10*sin(x(3)))/20 - (cos(x(3))*(20*100*sin(x(3))*x(4)^2 + 10*100*sin(x(5))*x(6)^2 - F + 10*100*cos(x(3))*sin(x(3)) + 10*100*cos(x(5))*sin(x(5))))/(20*(- 100*cos(x(5))^2 - 100*cos(x(5))^2 + 1000 + 100 + 100))
-%dx(5) = x(6)
-%dx(6) = -(10*sin(x(5)))/10 - (cos(x(5))*(20*100*sin(x(3))*x(4)^2 + 10*100*sin(x(5))*x(6)^2 - F + 10*100*cos(x(3))*sin(x(3)) + 10*100*cos(x(5))*sin(x(5))))/(10*(- 100*cos(x(3))^2 - 100*cos(x(6))^2 + 1000 + 100 + 100))
-%end
+x0 = [0.1, 0, 0.1, 0, 0.1, 0];
+[T,X] = ode45(@odefcn,[0,70],x0);
+%figure(2)
+%plot(T,X(:,1),'-',T,X(:,3),'-',T,X(:,5),'-')
 %%%%%Lyapunov Stability of CL System%%%%%
 Ac_Eig = eig(Ac)
 % All Eigenvalues are negative so the CL system is at least locally stable
 %%%PART 2%%%
 %%%%Observability%%%%%
 Cx = [1 0 0 0 0 0];
-Cth12 = [0 0 1 0 1 0];
-Cxth2 = [1 0 0 0 1 0];
-Obx = obsv(Ac,Cx);
-Obth12 = obsv(Ac,Cth12);
-Obxth2 = obsv(Ac,Cxth2);
-Ob = obsv(Ac,C);
-unobx = length(Ac)-rank(Obx)
-unobth12 = length(Ac)-rank(Obth12)
-unobxth2 = length(Ac)-rank(Obxth2)
-unob = length(Ac)-rank(Ob)
+Cth12 = [0 0 1 0 0 0;
+         0 0 0 0 1 0];
+Cxth2 = [1 0 0 0 0 0;
+         0 0 0 0 1 0];
+Obx = obsv(AF,Cx);
+Obth12 = obsv(AF,Cth12);
+Obxth2 = obsv(AF,Cxth2);
+Ob = obsv(AF,C);
+unobx = length(AF)-rank(Obx)
+unobth12 = length(AF)-rank(Obth12)
+unobxth2 = length(AF)-rank(Obxth2)
+unob = length(AF)-rank(Ob)
 % The linearized system is observable only for x,th1,th2
 %%%%%Luenberger Observer%%%%%
-%Lx = place(Ac',Cx',P)'
-%Acex = (Ac-L*Cx)
+Q = 1; 
+R = 1;
+Plantx = ss(AF,[BF BF],Cx,0);
+[kalmfx,Lx,Px,Mx] = kalman(Plantx,Q,R);
+Lx;
+%Acex = (AF-Lx*Cx);
+Acex = [(AF-BF*K) (BF*K);
+       zeros(size(AF)) (AF-Lx*Cx)];
+Bcex = [BF;
+       zeros(size(BF))];
+Ccex = [Cx zeros(size(Cx))];
+Dcex = [0];
+
+Plantxth2 = ss(AF,[BF BF],Cxth2,0);
+[kalmfxth2,Lxth2,Pxth2,Mxth2] = kalman(Plantxth2,Q,R);
+Lxth2;
+%Acexth2 = (AF-Lxth2*Cxth2);
+Acexth2 = [(AF-BF*K) (BF*K);
+       zeros(size(AF)) (AF-Lxth2*Cxth2)];
+Bcexth2 = [BF;
+       zeros(size(BF))];
+Ccexth2 = [Cxth2 zeros(size(Cxth2))];
+Dcexth2 = [0;0];
+
+Plant = ss(AF,[BF BF],C,0);
+[kalmf,L,P,M] = kalman(Plant,Q,R);
+L;
+%Ace = (AF-L*C);
+Ace = [(AF-BF*K) (BF*K);
+       zeros(size(AF)) (AF-L*C)];
+Bce = [BF;
+       zeros(size(BF))];
+Cce = [C zeros(size(C))];
+Dce = [0;0;0];
+
+
+x0x = [.1 0 0 0 0 0 0 0 0 0 0 0];
+t = 0:0.1:70;
+u = zeros(size(t));
+[y1,x1] =lsim(Acex,Bcex,Ccex,Dcex,u,t,x0x);
+figure(3)
+plot(t,y1)
+
+x0xth2 = [.1 0 0 0 .1 0 0 0 0 0 0 0];
+t = 0:0.1:70;
+u = zeros(size(t));
+[y2,x2] =lsim(Acexth2,Bcexth2,Ccexth2,Dcexth2,u,t,x0xth2);
+figure(4)
+plot(t,y2)
+
+x0 = [.1 0 .1 0 .1 0 0 0 0 0 0 0];
+t = 0:0.1:70;
+u = zeros(size(t));
+[y3,x3] =lsim(Ace,Bce,Cce,Dce,u,t,x0);
+figure(5)
+plot(t,y3)
+
+
+
+
+
+
+
+
+
+
+
+function dx = odefcn(t,x)
+dx = zeros(6,1);
+dx(1) = x(2);
+dx(2) = -(2000*sin(x(3))*x(4)^2 + 1000*sin(x(5))*x(6)^2 + 1000*cos(x(3))*sin(x(3)) + 1000*cos(x(5))*sin(x(5)))/(-100*cos(x(3))^2 - 100*cos(x(5))^2 + 1200) - .1*x(1) - .5652*x(2) - 1.1052*x(3) - 4.2587*x(4) - 2.6153*x(5) - 1.7116*x(6);
+dx(3) = x(4);
+dx(4) = -sin(x(3))/2 - (cos(x(3))*(2000*sin(x(3))*x(4)^2 + 1000*sin(x(5))*x(6)^2 + 1000*cos(x(3))*sin(x(3)) + 1000*cos(x(5))*sin(x(5))))/(20*(- 100*cos(x(5))^2 - 100*cos(x(5))^2 + 1200))  - .005*x(1) - .0283*x(2) - .0553*x(3) - .2129*x(4) - .1308*x(5) - .0856*x(6);
+dx(5) = x(6);
+dx(6) = -sin(x(5)) - (cos(x(5))*(2000*sin(x(3))*x(4)^2 + 1000*sin(x(5))*x(6)^2 + 1000*cos(x(3))*sin(x(3)) + 1000*cos(x(5))*sin(x(5))))/(10*(- 100*cos(x(3))^2 - 100*cos(x(6))^2 + 1200))  - .01*x(1) - .0565*x(2) - .1105*x(3) - .4259*x(4) - .2615*x(5) - .1712*x(6);
+end
