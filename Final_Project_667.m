@@ -113,13 +113,13 @@ x0 = [.1 0 .1 0 .1 0];
 t = 0:0.1:70;
 u = zeros(size(t));
 [y,x] =lsim(Ac,Bc,Cc,Dc,u,t,x0);
-%figure(1)
-%plot(t,y)
+figure(1)
+plot(t,y)
 %%%%Nonlinear Reponse%%%%
 x0 = [0.1, 0, 0.1, 0, 0.1, 0];
 [T,X] = ode45(@odefcn,[0,70],x0);
-%figure(2)
-%plot(T,X(:,1),'-',T,X(:,3),'-',T,X(:,5),'-')
+figure(2)
+plot(T,X(:,1),'-',T,X(:,3),'-',T,X(:,5),'-')
 %%%%%Lyapunov Stability of CL System%%%%%
 Ac_Eig = eig(Ac)
 % All Eigenvalues are negative so the CL system is at least locally stable
@@ -140,65 +140,64 @@ unobxth2 = length(AF)-rank(Obxth2)
 unob = length(AF)-rank(Ob)
 % The linearized system is observable only for x,th1,th2
 %%%%%Luenberger Observer%%%%%
-Q = 1; 
-R = 1;
-Plantx = ss(AF,[BF BF],Cx,0);
-[kalmfx,Lx,Px,Mx] = kalman(Plantx,Q,R);
+Q1 = 10000; 
+R1 = 1;
+Plantx = ss(AF,BF,Cx,0);
+[kalmfx,Lx,Px,Mx] = kalman(Plantx,Q1,R1);
 Lx;
-%Acex = (AF-Lx*Cx);
-Acex = [(AF-BF*K) (BF*K);
-       zeros(size(AF)) (AF-Lx*Cx)];
-Bcex = [BF;
-       zeros(size(BF))];
-Ccex = [Cx zeros(size(Cx))];
-Dcex = [0];
+Px;
+Acex = (AF-Lx*Cx);
 
-Plantxth2 = ss(AF,[BF BF],Cxth2,0);
-[kalmfxth2,Lxth2,Pxth2,Mxth2] = kalman(Plantxth2,Q,R);
+Q2 = 100000; 
+R2 = .0001;
+Plantxth2 = ss(AF,BF,Cxth2,0);
+[kalmfxth2,Lxth2,Pxth2,Mxth2] = kalman(Plantxth2,Q2,R2);
 Lxth2;
-%Acexth2 = (AF-Lxth2*Cxth2);
-Acexth2 = [(AF-BF*K) (BF*K);
-       zeros(size(AF)) (AF-Lxth2*Cxth2)];
-Bcexth2 = [BF;
-       zeros(size(BF))];
-Ccexth2 = [Cxth2 zeros(size(Cxth2))];
-Dcexth2 = [0;0];
+Pxth2;
+Acexth2 = (AF-Lxth2*Cxth2);
 
-Plant = ss(AF,[BF BF],C,0);
-[kalmf,L,P,M] = kalman(Plant,Q,R);
+Q3 = 1000000; 
+R3 = .00001;
+Plant = ss(AF,BF,C,0);
+[kalmf,L,P,M] = kalman(Plant,Q3,R3);
 L;
-%Ace = (AF-L*C);
-Ace = [(AF-BF*K) (BF*K);
-       zeros(size(AF)) (AF-L*C)];
-Bce = [BF;
-       zeros(size(BF))];
-Cce = [C zeros(size(C))];
-Dce = [0;0;0];
+P;
+Ace = (AF-L*C);
 
+x0 = [.1 0 0 0 0 0];
+t = 0:0.1:70;
+u = zeros(size(t));
+[y1,x1] =lsim(Acex,Bc,Cx,[0],u,t,x0);
+figure(3)
+plot(t,y1)
+
+x0xth2 = [.1 0 0 0 .1 0];
+t = 0:0.1:100;
+u = zeros(size(t));
+[y2,x2] =lsim(Acexth2,Bc,Cxth2,[0;0],u,t,x0xth2);
+figure(4)
+plot(t,y2)
+
+x0 = [.1 0 .1 0 .1 0];
+t = 0:0.1:300;
+u = zeros(size(t));
+[y3,x3] =lsim(Ace,Bc,C,[0;0;0],u,t,x0);
+figure(5)
+plot(t,y3)
+%%%LQG Controller%%%
+Alqg = [(AF-BF*K) (BF*K);
+       zeros(size(AF)) (AF-Lx*Cx)];
+Blqg = [BF;
+       zeros(size(BF))];
+Clqg = [Cx zeros(size(Cx))];
+Dlqg = [0];
 
 x0x = [.1 0 0 0 0 0 0 0 0 0 0 0];
 t = 0:0.1:70;
 u = zeros(size(t));
-[y1,x1] =lsim(Acex,Bcex,Ccex,Dcex,u,t,x0x);
-figure(3)
-plot(t,y1)
-
-x0xth2 = [.1 0 0 0 .1 0 0 0 0 0 0 0];
-t = 0:0.1:70;
-u = zeros(size(t));
-[y2,x2] =lsim(Acexth2,Bcexth2,Ccexth2,Dcexth2,u,t,x0xth2);
-figure(4)
-plot(t,y2)
-
-x0 = [.1 0 .1 0 .1 0 0 0 0 0 0 0];
-t = 0:0.1:70;
-u = zeros(size(t));
-[y3,x3] =lsim(Ace,Bce,Cce,Dce,u,t,x0);
-figure(5)
-plot(t,y3)
-
-
-
+[y4,x4] =lsim(Alqg,Blqg,Clqg,Dlqg,u,t,x0x);
+figure(6)
+plot(t,y4)
 
 
 
@@ -208,6 +207,15 @@ plot(t,y3)
 
 
 function dx = odefcn(t,x)
+dx = zeros(6,1);
+dx(1) = x(2);
+dx(2) = -(2000*sin(x(3))*x(4)^2 + 1000*sin(x(5))*x(6)^2 + 1000*cos(x(3))*sin(x(3)) + 1000*cos(x(5))*sin(x(5)))/(-100*cos(x(3))^2 - 100*cos(x(5))^2 + 1200) - .1*x(1) - .5652*x(2) - 1.1052*x(3) - 4.2587*x(4) - 2.6153*x(5) - 1.7116*x(6);
+dx(3) = x(4);
+dx(4) = -sin(x(3))/2 - (cos(x(3))*(2000*sin(x(3))*x(4)^2 + 1000*sin(x(5))*x(6)^2 + 1000*cos(x(3))*sin(x(3)) + 1000*cos(x(5))*sin(x(5))))/(20*(- 100*cos(x(5))^2 - 100*cos(x(5))^2 + 1200))  - .005*x(1) - .0283*x(2) - .0553*x(3) - .2129*x(4) - .1308*x(5) - .0856*x(6);
+dx(5) = x(6);
+dx(6) = -sin(x(5)) - (cos(x(5))*(2000*sin(x(3))*x(4)^2 + 1000*sin(x(5))*x(6)^2 + 1000*cos(x(3))*sin(x(3)) + 1000*cos(x(5))*sin(x(5))))/(10*(- 100*cos(x(3))^2 - 100*cos(x(6))^2 + 1200))  - .01*x(1) - .0565*x(2) - .1105*x(3) - .4259*x(4) - .2615*x(5) - .1712*x(6);
+end
+function dx = odefcnx(t,x)
 dx = zeros(6,1);
 dx(1) = x(2);
 dx(2) = -(2000*sin(x(3))*x(4)^2 + 1000*sin(x(5))*x(6)^2 + 1000*cos(x(3))*sin(x(3)) + 1000*cos(x(5))*sin(x(5)))/(-100*cos(x(3))^2 - 100*cos(x(5))^2 + 1200) - .1*x(1) - .5652*x(2) - 1.1052*x(3) - 4.2587*x(4) - 2.6153*x(5) - 1.7116*x(6);
