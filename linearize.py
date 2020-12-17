@@ -41,12 +41,12 @@ T = 0.5 * (M + m1 + m2)*dx**2 - m1*l1*dx*dt1*sym.cos(t1) + 0.5*m1*l1**2*dt1**2 -
 V = -m1*g*l1*sym.cos(t1) - m2*g*l2*sym.cos(t2)
 
 # Simulation and Control Parameters
-Times = np.arange(0,120,1e-3)
+Times = np.arange(0,40,1e-3)
 IC = np.array([0,1e-3,0,5e-5,0,1e-4])
-Q = np.diag([1,100,1,10,1,10])
-R = 0.001
-# Q = np.diag([1000,1,100000,1,10000,1])
-# R = 1.0e-5
+# Q = np.diag([1,100,1,10,1,10])
+# R = 0.001
+Q = np.diag([1,0.5,1000,500,1000,500])
+R = 1.0e-4
 
 if __name__ == "__main__":
     ###############################################################################################
@@ -221,7 +221,7 @@ if __name__ == "__main__":
     ###############################################################################################
 
     # construct desired poles (order of magnitude larger than controller eigenvalues)
-    observer_poles = np.array([np.complex(1*sym.re(eig), sym.im(eig)) for eig in eigenvalues])
+    observer_poles = np.array([np.complex(10*sym.re(eig), sym.im(eig)) for eig in eigenvalues])
 
     # obtain observers for each output vector
     plt.figure("Closed Loop Observer Response")
@@ -238,16 +238,20 @@ if __name__ == "__main__":
         SYS_CLO = scipy.signal.StateSpace(Ao,Bo,Co)
         T,Y,X = scipy.signal.lsim(SYS_CLO, None, Times, np.hstack((IC,IC)))
 
+        # estimation is the difference between actual state and estimation error
+        X_est = X[:,:6]-X[:,6:]
+
         # plot response
-        plt.subplot(3,1,i+1)
+        plt.subplot(len(Observables),1,i+1)
         plt.plot(T,X[:,0], 'b')
-        plt.plot(T,X[:,6], '--b')
+        plt.plot(T,X_est[:,0], '--b')
         plt.plot(T,X[:,2], 'r')
-        plt.plot(T,X[:,8], '--r')
+        plt.plot(T,X_est[:,2], '--r')
         plt.plot(T,X[:,4], 'k')
-        plt.plot(T,X[:,10], '--k')
+        plt.plot(T,X_est[:,4], '--k')
+        plt.xlim(T[0],T[-1])
         plt.grid(True)
-        plt.legend(["X","X_obs","theta1","theta1_obs","theta2","theta2_obs"])
+        plt.legend(["X","X_obs","theta1","theta1_obs","theta2","theta2_obs"],loc=1)
 
     # plot
     plt.show()
