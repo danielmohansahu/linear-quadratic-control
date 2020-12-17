@@ -221,51 +221,36 @@ if __name__ == "__main__":
     ###############################################################################################
 
     # construct desired poles (order of magnitude larger than controller eigenvalues)
-    s = sym.Symbol("s")
-    observer_poles = 1
-    for eig in eigenvalues:
-        observer_poles *= (s - np.complex(2*sym.re(eig), sym.im(eig)))
+    observer_poles = np.array([np.complex(1*sym.re(eig), sym.im(eig)) for eig in eigenvalues])
 
     # obtain observers for each output vector
+    plt.figure("Closed Loop Observer Response")
     for i,C in enumerate(Observables):
         # place poles of A-LC an order of magnitude farther left than the controller poles
-        L = sym.Matrix(sym.MatrixSymbol("L",C.shape[1],C.shape[0]))
-
-        # solve for characteristic equation
-        CE = (A - L*C).charpoly(s) - observer_poles
-
-        # solve for the Luenburg Observer
-        L = sym.re(L.subs(sym.solve(CE,L)))
+        C = np.array(C, dtype=np.float32)
+        L = scipy.signal.place_poles(A.T, C.T, observer_poles).gain_matrix.T
         print("Found observer for potential C matrix #{}".format(i+1))
 
         # simulate the response
-        xhat = np.zeros((6,1))
-        C = np.array(C)
-        L = np.array(L)
-        def resp(times, state):
-            """ Return the derivative of the state, using an observer.
-            """ 
-            # why not nonlocal?
-            global xhat
+        Ao = np.block([[A-B@K, B@K],[np.zeros(A.shape),A-L@C]])
+        Bo = np.block([[B],[np.zeros(B.shape)]])
+        Co = np.block([[C, np.zeros(C.shape)]])
+        SYS_CLO = scipy.signal.StateSpace(Ao,Bo,Co)
+        T,Y,X = scipy.signal.lsim(SYS_CLO, None, Times, np.hstack((IC,IC)))
 
-            # calculate actual response
-            y = C@state
-            x = A@state - ((B*K)@xhat).T
-
-            yhat = C@xhat;
-            xhat = (A - B@K)@xhat + L@(y - yhat)
-            return x[0]
-
-        observed = scipy.integrate.solve_ivp(resp, [Times[0],Times[-1]], IC)
-
-        # plot the results
-        plt.plot(observed.t, observed.y[0,:], '--b')
-        plt.plot(observed.t, observed.y[2,:], '--r')
-        plt.plot(observed.t, observed.y[4,:], '--k')
-
+        # plot response
+        plt.subplot(3,1,i+1)
+        plt.plot(T,X[:,0], 'b')
+        plt.plot(T,X[:,6], '--b')
+        plt.plot(T,X[:,2], 'r')
+        plt.plot(T,X[:,8], '--r')
+        plt.plot(T,X[:,4], 'k')
+        plt.plot(T,X[:,10], '--k')
         plt.grid(True)
-        plt.legend(["Linear X","Linear Theta1","Linear Theta2"])
-        plt.show()
+        plt.legend(["X","X_obs","theta1","theta1_obs","theta2","theta2_obs"])
+
+    # plot
+    plt.show()
 
 
     ###############################################################################################
