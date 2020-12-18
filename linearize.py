@@ -137,17 +137,13 @@ if __name__ == "__main__":
     SYS_CL = scipy.signal.StateSpace(A-B*K,B,np.eye(6))
 
     # simulate the nonlinear system
-    G_subs = {k:v.subs(constant_values).subs(F,0).evalf() for k,v in G.items()}
+    G_subs = {k:sym.lambdify(states,v.subs(constant_values).subs(F,0).evalf(),"numpy") for k,v in G.items()}
     def ODE(time, y):
-        state = [s for s in zip([x,dx,t1,dt1,t2,dt2], y)]
         command = (B*K)@np.array(y)
         result = [
-            y[1],
-            (G_subs[ddx].subs(state).subs(t,time) - command[1]).simplify(),
-            y[3],
-            (G_subs[ddt1].subs(state).subs(t,time) - command[3]).simplify(),
-            y[5],
-            (G_subs[ddt2].subs(state).subs(t,time) - command[5]).simplify()
+            y[1], G_subs[ddx](*y) - command[1],
+            y[3], G_subs[ddt1](*y) - command[3],
+            y[5], G_subs[ddt2](*y) - command[5]
         ]
         return result
 
@@ -255,25 +251,16 @@ if __name__ == "__main__":
 
         # simulate the nonlinear response
         def ODE(time, y):
-            X = [s for s in zip([x,dx,t1,dt1,t2,dt2], y[:6])]
-            E = [s for s in zip([x,dx,t1,dt1,t2,dt2], y[6:])]
             command = (B@K)@(np.array(y[6:])-np.array(y[:6]))
             observe = (L@C)@np.array(y[6:])
             result = [
-                y[1],
-                (G_subs[ddx].subs(X).subs(t,time) + command[1]).simplify(),
-                y[3],
-                (G_subs[ddt1].subs(X).subs(t,time) + command[3]).simplify(),
-                y[5],
-                (G_subs[ddt2].subs(X).subs(t,time) + command[5]).simplify(),
-                y[7],
-                (G_subs[ddx].subs(E).subs(t,time) - observe[1]).simplify(),
-                y[9],
-                (G_subs[ddt1].subs(E).subs(t,time) - observe[3]).simplify(),
-                y[11],
-                (G_subs[ddt2].subs(E).subs(t,time) - observe[5]).simplify()
+                y[1],  G_subs[ddx](*y[:6]) + command[1],
+                y[3],  G_subs[ddt1](*y[:6]) + command[3],
+                y[5],  G_subs[ddt2](*y[:6]) + command[5],
+                y[7],  G_subs[ddx](*y[6:]) - observe[1],
+                y[9],  G_subs[ddt1](*y[6:]) - observe[3],
+                y[11], G_subs[ddt2](*y[6:]) - observe[5]
             ]
-            print(time)
             return result
 
         resp = scipy.integrate.solve_ivp(ODE, [Times[0],Times[-1]], np.hstack((IC,IC)))
