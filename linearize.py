@@ -41,7 +41,7 @@ T = 0.5 * (M + m1 + m2)*dx**2 - m1*l1*dx*dt1*sym.cos(t1) + 0.5*m1*l1**2*dt1**2 -
 V = -m1*g*l1*sym.cos(t1) - m2*g*l2*sym.cos(t2)
 
 # Simulation and Control Parameters
-Times = np.arange(0,40,1e-3)
+Times = np.arange(0,20,1e-3)
 IC = np.array([0,1e-3,0,5e-5,0,1e-4])
 # Q = np.diag([1,100,1,10,1,10])
 # R = 0.001
@@ -242,13 +242,51 @@ if __name__ == "__main__":
         X_est = X[:,:6]-X[:,6:]
 
         # plot response
-        plt.subplot(len(Observables),1,i+1)
+        plt.subplot(len(Observables)*2,1,2*(i+1)-1)
         plt.plot(T,X[:,0], 'b')
         plt.plot(T,X_est[:,0], '--b')
         plt.plot(T,X[:,2], 'r')
         plt.plot(T,X_est[:,2], '--r')
         plt.plot(T,X[:,4], 'k')
         plt.plot(T,X_est[:,4], '--k')
+        plt.xlim(T[0],T[-1])
+        plt.grid(True)
+        plt.legend(["X","X_obs","theta1","theta1_obs","theta2","theta2_obs"],loc=1)
+
+        # simulate the nonlinear response
+        def ODE(time, y):
+            X = [s for s in zip([x,dx,t1,dt1,t2,dt2], y[:6])]
+            E = [s for s in zip([x,dx,t1,dt1,t2,dt2], y[6:])]
+            command = (B@K)@(np.array(y[6:])-np.array(y[:6]))
+            observe = (L@C)@np.array(y[6:])
+            result = [
+                y[1],
+                (G_subs[ddx].subs(X).subs(t,time) + command[1]).simplify(),
+                y[3],
+                (G_subs[ddt1].subs(X).subs(t,time) + command[3]).simplify(),
+                y[5],
+                (G_subs[ddt2].subs(X).subs(t,time) + command[5]).simplify(),
+                y[7],
+                (G_subs[ddx].subs(E).subs(t,time) - observe[1]).simplify(),
+                y[9],
+                (G_subs[ddt1].subs(E).subs(t,time) - observe[3]).simplify(),
+                y[11],
+                (G_subs[ddt2].subs(E).subs(t,time) - observe[5]).simplify()
+            ]
+            print(time)
+            return result
+
+        resp = scipy.integrate.solve_ivp(ODE, [Times[0],Times[-1]], np.hstack((IC,IC)))
+        assert(resp.success)
+
+        # plot the results
+        plt.subplot(len(Observables)*2,2,2*(i+1))
+        plt.plot(resp.t, resp.y[0,:], 'b')
+        plt.plot(resp.t, resp.y[0,:]-resp.y[6,:], '--b')
+        plt.plot(resp.t, resp.y[2,:], 'r')
+        plt.plot(resp.t, resp.y[2,:]-resp.y[8,:], '--r')
+        plt.plot(resp.t, resp.y[4,:], 'k')
+        plt.plot(resp.t, resp.y[4,:]-resp.y[10,:], '--k')
         plt.xlim(T[0],T[-1])
         plt.grid(True)
         plt.legend(["X","X_obs","theta1","theta1_obs","theta2","theta2_obs"],loc=1)
