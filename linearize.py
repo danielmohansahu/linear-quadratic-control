@@ -41,7 +41,7 @@ T = 0.5 * (M + m1 + m2)*dx**2 - m1*l1*dx*dt1*sym.cos(t1) + 0.5*m1*l1**2*dt1**2 -
 V = -m1*g*l1*sym.cos(t1) - m2*g*l2*sym.cos(t2)
 
 # Simulation and Control Parameters
-Times = np.arange(0,20,1e-3)
+Times = np.arange(0,30,1e-3)
 IC = np.array([0,1e-3,0,5e-5,0,1e-4])
 # Q = np.diag([1,100,1,10,1,10])
 # R = 0.001
@@ -238,7 +238,7 @@ if __name__ == "__main__":
         X_est = X[:,:6]-X[:,6:]
 
         # plot response
-        plt.subplot(len(Observables)*2,1,2*(i+1)-1)
+        plt.subplot(len(Observables),2,2*(i+1)-1)
         plt.plot(T,X[:,0], 'b')
         plt.plot(T,X_est[:,0], '--b')
         plt.plot(T,X[:,2], 'r')
@@ -267,7 +267,7 @@ if __name__ == "__main__":
         assert(resp.success)
 
         # plot the results
-        plt.subplot(len(Observables)*2,2,2*(i+1))
+        plt.subplot(len(Observables),2,2*(i+1))
         plt.plot(resp.t, resp.y[0,:], 'b')
         plt.plot(resp.t, resp.y[0,:]-resp.y[6,:], '--b')
         plt.plot(resp.t, resp.y[2,:], 'r')
