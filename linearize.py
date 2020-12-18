@@ -41,8 +41,8 @@ T = 0.5 * (M + m1 + m2)*dx**2 - m1*l1*dx*dt1*sym.cos(t1) + 0.5*m1*l1**2*dt1**2 -
 V = -m1*g*l1*sym.cos(t1) - m2*g*l2*sym.cos(t2)
 
 # Simulation and Control Parameters
-Times = np.arange(0,40,1e-3)
-IC = np.array([0,1,0,5e-2,0,1e-2])
+Times = np.arange(0,60,1e-3)
+IC = np.array([0,1e-3,0,5e-5,0,1e-4])
 # Q = np.diag([1,100,1,10,1,10])
 # R = 0.001
 Q = np.diag([1,0.5,1000,500,1000,500])
