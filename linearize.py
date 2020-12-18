@@ -9,7 +9,7 @@ from scipy.linalg import solve_continuous_are
 from matplotlib import pyplot as plt
 
 # display verbose output
-verbose = False
+verbose = True
 
 # define constants
 M = sym.Symbol("M")
@@ -23,11 +23,11 @@ constant_values = [(g,9.81),(M,1000),(m1,100),(m2,100),(l1,20),(l2,10)]
 # core state variables
 t = sym.Symbol("t")
 x = sym.Function("x")(t)
-dx = sym.Function("dx")(t)
+dx = x.diff(t)
 t1 = sym.Function("theta1")(t)
-dt1 = sym.Function("dtheta1")(t)
+dt1 = t1.diff(t)
 t2 = sym.Function("theta2")(t)
-dt2 = sym.Function("dtheta2")(t)
+dt2 = t2.diff(t)
 states = [x,dx,t1,dt1,t2,dt2]
 
 # other variables
@@ -78,7 +78,7 @@ if __name__ == "__main__":
     ])
 
     # substitute our origin conditions (x,dx,t1,dt1,t2,dt2) = 0
-    J = J_orig.subs([(v,0) for v in states])
+    J = J_orig.subs([(v,0) for v in states]).doit()
     
     if verbose:
         print("Jacobian at origin:")
