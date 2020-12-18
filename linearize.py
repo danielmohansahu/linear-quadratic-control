@@ -41,7 +41,7 @@ T = 0.5 * (M + m1 + m2)*dx**2 - m1*l1*dx*dt1*sym.cos(t1) + 0.5*m1*l1**2*dt1**2 -
 V = -m1*g*l1*sym.cos(t1) - m2*g*l2*sym.cos(t2)
 
 # Simulation and Control Parameters
-Times = np.arange(0,30,1e-3)
+Times = np.arange(0,60,1e-3)
 IC = np.array([0,1e-3,0,5e-5,0,1e-4])
 # Q = np.diag([1,100,1,10,1,10])
 # R = 0.001
@@ -139,13 +139,16 @@ if __name__ == "__main__":
     # simulate the nonlinear system
     G_subs = {k:sym.lambdify(states,v.subs(constant_values).subs(F,0).evalf(),"numpy") for k,v in G.items()}
     def ODE(time, y):
-        command = (B*K)@np.array(y)
-        result = [
-            y[1], G_subs[ddx](*y) - command[1],
-            y[3], G_subs[ddt1](*y) - command[3],
-            y[5], G_subs[ddt2](*y) - command[5]
+        state = [
+            y[1],
+            G_subs[ddx](*y),
+            y[3],
+            G_subs[ddt1](*y),
+            y[5],
+            G_subs[ddt2](*y)
         ]
-        return result
+        command = (B*K)@np.array(y)
+        return state - command
 
     # integrate
     if verbose:
@@ -220,7 +223,8 @@ if __name__ == "__main__":
     observer_poles = np.array([np.complex(10*sym.re(eig), sym.im(eig)) for eig in eigenvalues])
 
     # obtain observers for each output vector
-    plt.figure("Closed Loop Observer Response")
+    fig,ax = plt.subplots(nrows=len(Observables), ncols=2, sharex=True, sharey=True)
+    fig.suptitle("Closed Loop Observer Response")
     for i,C in enumerate(Observables):
         # place poles of A-LC an order of magnitude farther left than the controller poles
         C = np.array(C, dtype=np.float32)
@@ -238,45 +242,55 @@ if __name__ == "__main__":
         X_est = X[:,:6]-X[:,6:]
 
         # plot response
-        plt.subplot(len(Observables),2,2*(i+1)-1)
+        fig.add_subplot(len(Observables),2,2*(i+1)-1, frameon=False)
+        plt.title("Linear Response, C_{}".format(i+1))
         plt.plot(T,X[:,0], 'b')
         plt.plot(T,X_est[:,0], '--b')
         plt.plot(T,X[:,2], 'r')
         plt.plot(T,X_est[:,2], '--r')
         plt.plot(T,X[:,4], 'k')
         plt.plot(T,X_est[:,4], '--k')
-        plt.xlim(T[0],T[-1])
         plt.grid(True)
         plt.legend(["X","X_obs","theta1","theta1_obs","theta2","theta2_obs"],loc=1)
+        plt.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
+        plt.xlim(T[0],T[-1])
 
         # simulate the nonlinear response
         def ODE(time, y):
+            state = [
+                y[1],
+                G_subs[ddx](*y[:6]),
+                y[3],
+                G_subs[ddt1](*y[:6]),
+                y[5],
+                G_subs[ddt2](*y[:6]),
+                y[7],
+                G_subs[ddx](*y[6:]),
+                y[9],
+                G_subs[ddt1](*y[6:]),
+                y[11],
+                G_subs[ddt2](*y[6:])
+            ]
             command = (B@K)@(np.array(y[6:])-np.array(y[:6]))
             observe = (L@C)@np.array(y[6:])
-            result = [
-                y[1],  G_subs[ddx](*y[:6]) + command[1],
-                y[3],  G_subs[ddt1](*y[:6]) + command[3],
-                y[5],  G_subs[ddt2](*y[:6]) + command[5],
-                y[7],  G_subs[ddx](*y[6:]) - observe[1],
-                y[9],  G_subs[ddt1](*y[6:]) - observe[3],
-                y[11], G_subs[ddt2](*y[6:]) - observe[5]
-            ]
-            return result
+            return state + np.hstack((command, -observe))
 
         resp = scipy.integrate.solve_ivp(ODE, [Times[0],Times[-1]], np.hstack((IC,IC)))
         assert(resp.success)
 
         # plot the results
-        plt.subplot(len(Observables),2,2*(i+1))
+        fig.add_subplot(len(Observables),2,2*(i+1), frameon=False)
+        plt.title("Nonlinear Response, C_{}".format(i+1))
         plt.plot(resp.t, resp.y[0,:], 'b')
         plt.plot(resp.t, resp.y[0,:]-resp.y[6,:], '--b')
         plt.plot(resp.t, resp.y[2,:], 'r')
         plt.plot(resp.t, resp.y[2,:]-resp.y[8,:], '--r')
         plt.plot(resp.t, resp.y[4,:], 'k')
         plt.plot(resp.t, resp.y[4,:]-resp.y[10,:], '--k')
-        plt.xlim(T[0],T[-1])
         plt.grid(True)
         plt.legend(["X","X_obs","theta1","theta1_obs","theta2","theta2_obs"],loc=1)
+        plt.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
+        plt.xlim(T[0],T[-1])
 
     # plot
     plt.show()
