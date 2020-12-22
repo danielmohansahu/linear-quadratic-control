@@ -8,9 +8,6 @@ import scipy.integrate
 from scipy.linalg import solve_continuous_are
 from matplotlib import pyplot as plt
 
-# display verbose output
-verbose = True
-
 # define constants
 M = sym.Symbol("M")
 m1 = sym.Symbol("m1")
@@ -63,9 +60,8 @@ if __name__ == "__main__":
         ]
     G = {k:v.simplify() for k,v in sym.solve(EOM, [ddx,ddt1,ddt2]).items()}
 
-    if verbose:
-        print("Equations of motion:")
-        sym.pprint(G)
+    print("Equations of motion:")
+    sym.pprint(G)
 
     ###############################################################################################
     ######################################## Part B ###############################################
@@ -80,19 +76,17 @@ if __name__ == "__main__":
     # substitute our origin conditions (x,dx,t1,dt1,t2,dt2) = 0
     J = J_orig.subs([(v,0) for v in states]).doit()
     
-    if verbose:
-        print("Jacobian at origin:")
-        sym.pprint(J)
+    print("Jacobian at origin:")
+    sym.pprint(J)
     
     # Convert to our linearized state space representation
     A = sym.Matrix([sym.zeros(1,6), J[0,:], sym.zeros(1,6), J[1,:], sym.zeros(1,6), J[2,:]])
     A[0,1] = A[2,3] = A[4,5] = sym.Rational(1)
     B = sym.Matrix([0,1/M,0,1/(l1*M),0,1/(l2*M)])
 
-    if verbose:
-        print("State Space Representation (A,B):")
-        sym.pprint(A)
-        sym.pprint(B)
+    print("State Space Representation (A,B):")
+    sym.pprint(A)
+    sym.pprint(B)
 
     ###############################################################################################
     ######################################## Part C ###############################################
@@ -102,9 +96,8 @@ if __name__ == "__main__":
     for i in range(1,6):
         Controllability = Controllability.row_join(A**i * B)
 
-    if verbose:
-        print("Controllability matrix: ")
-        sym.pprint(Controllability)
+    print("Controllability matrix: ")
+    sym.pprint(Controllability)
 
     # Controllability conditions:
     print("System is controllable iff the following is satisfied: ")
@@ -119,9 +112,8 @@ if __name__ == "__main__":
     # sanity check rank
     assert(Controllability_subs.rank() == 6)
 
-    if verbose:
-        print("Part D: Rank {}".format(Controllability_subs.rank()))
-        sym.pprint(Controllability_subs)
+    print("Part D: Rank {}".format(Controllability_subs.rank()))
+    sym.pprint(Controllability_subs)
 
     # update A,B matrices with these values
     A = np.array(A.subs(constant_values),dtype=np.float32)
@@ -151,26 +143,25 @@ if __name__ == "__main__":
         return state - command
 
     # integrate
-    if verbose:
-        T,Y,X = scipy.signal.lsim(SYS_CL, None, Times, IC)
+    T,Y,X = scipy.signal.lsim(SYS_CL, None, Times, IC)
 
-        # plot response
-        plt.figure("Closed Loop Response")
-        plt.plot(T,X[:,0], 'b')
-        plt.plot(T,X[:,2], 'r')
-        plt.plot(T,X[:,4], 'k')
+    # plot response
+    plt.figure("Closed Loop Response")
+    plt.plot(T,X[:,0], 'b')
+    plt.plot(T,X[:,2], 'r')
+    plt.plot(T,X[:,4], 'k')
 
-        nonlinear = scipy.integrate.solve_ivp(ODE, [Times[0],Times[-1]], IC)
-        assert(nonlinear.success)
+    nonlinear = scipy.integrate.solve_ivp(ODE, [Times[0],Times[-1]], IC)
+    assert(nonlinear.success)
 
-        # plot the results
-        plt.plot(nonlinear.t, nonlinear.y[0,:], '--b')
-        plt.plot(nonlinear.t, nonlinear.y[2,:], '--r')
-        plt.plot(nonlinear.t, nonlinear.y[4,:], '--k')
+    # plot the results
+    plt.plot(nonlinear.t, nonlinear.y[0,:], '--b')
+    plt.plot(nonlinear.t, nonlinear.y[2,:], '--r')
+    plt.plot(nonlinear.t, nonlinear.y[4,:], '--k')
 
-        plt.grid(True)
-        plt.legend(["Linear X","Linear Theta1","Linear Theta2", "Nonlinear X", "Nonlinear Theta1", "Nonlinear Theta2"])
-        plt.show()
+    plt.grid(True)
+    plt.legend(["Linear X","Linear Theta1","Linear Theta2", "Nonlinear X", "Nonlinear Theta1", "Nonlinear Theta2"])
+    plt.show()
 
     # check that eigenvalues of the linearized closed loop system are all in the LHP
     eigenvalues = np.linalg.eig(A-B*K)[0]
