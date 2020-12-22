@@ -115,11 +115,17 @@ u = zeros(size(t));
 [y,x] =lsim(Ac,Bc,Cc,Dc,u,t,x0);
 figure(1)
 plot(t,y)
+title('Linearized System with LQR')
+xlabel('Time (s)')
+legend('x(t)','Theta_1(t)','Theta_2(t)')
 %%%%Nonlinear Reponse%%%%
 x0 = [0.1, 0, 0.1, 0, 0.1, 0];
 [T,X] = ode45(@odefcn,[0,70],x0);
 figure(2)
 plot(T,X(:,1),'-',T,X(:,3),'-',T,X(:,5),'-')
+title('Non-Linear System with LQR')
+xlabel('Time (s)')
+legend('Nonlinear x(t)','Nonlinear Theta_1(t)','Nonlinear Theta_2(t)')
 %%%%%Lyapunov Stability of CL System%%%%%
 Ac_Eig = eig(Ac)
 % All Eigenvalues are negative so the CL system is at least locally stable
@@ -162,28 +168,58 @@ Plant = ss(AF,BF,C,0);
 [kalmf,L,P,M] = kalman(Plant,Q3,R3);
 L;
 P;
-Ace = (AF-L*C);
+%Ace = (AF-L*C);
 
-x0 = [.1 0 0 0 0 0];
+Ax = [(AF-BF*K) (BF*K);
+       zeros(size(AF)) (AF-Lx*Cx)];
+Bx = [BF;
+       zeros(size(BF))];
+Cx = [Cx zeros(size(Cx))];
+Dx = [0];
+
+x0x = [0 0 0 0 0 0 .1 0 0 0 0 0];
 t = 0:0.1:70;
 u = zeros(size(t));
-[y1,x1] =lsim(Acex,Bc,Cx,[0],u,t,x0);
+[y1,x1] =lsim(Ax,Bx,Cx,Dx,u,t,x0x);
 figure(3)
 plot(t,y1)
+title('x(t) with Luenberger Observer')
+xlabel('Time (s)')
+legend('x(t)')
 
-x0xth2 = [.1 0 0 0 .1 0];
-t = 0:0.1:100;
+Axth2 = [(AF-BF*K) (BF*K);
+       zeros(size(AF)) (AF-Lxth2*Cxth2)];
+Bxth2 = [BF;
+       zeros(size(BF))];
+Cxth2 = [Cxth2 zeros(size(Cxth2))];
+Dxth2 = [0;0];
+
+x0x = [0 0 0 0 0 0 .1 0 0 0 .1 0];
+t = 0:0.1:70;
 u = zeros(size(t));
-[y2,x2] =lsim(Acexth2,Bc,Cxth2,[0;0],u,t,x0xth2);
+[y2,x4] =lsim(Axth2,Bxth2,Cxth2,Dxth2,u,t,x0x);
 figure(4)
 plot(t,y2)
+title('(x(t),Theta_2(t)) with Luenberger Observer')
+xlabel('Time (s)')
+legend('x(t)','Theta_2(t)')
 
-x0 = [.1 0 .1 0 .1 0];
-t = 0:0.1:300;
+A = [(AF-BF*K) (BF*K);
+       zeros(size(AF)) (AF-L*C)];
+B = [BF;
+       zeros(size(BF))];
+C = [C zeros(size(C))];
+D = [0;0;0];
+
+x0x = [0 0 0 0 0 0 .1 0 .1 0 .1 0];
+t = 0:0.1:70;
 u = zeros(size(t));
-[y3,x3] =lsim(Ace,Bc,C,[0;0;0],u,t,x0);
+[y3,x1] =lsim(A,B,C,D,u,t,x0x);
 figure(5)
 plot(t,y3)
+title('Complete System with Luenberger Observer')
+xlabel('Time (s)')
+legend('x(t)','Theta_1(t)','Theta_2(t)')
 %%%LQG Controller%%%
 Alqg = [(AF-BF*K) (BF*K);
        zeros(size(AF)) (AF-Lx*Cx)];
@@ -198,6 +234,9 @@ u = zeros(size(t));
 [y4,x4] =lsim(Alqg,Blqg,Clqg,Dlqg,u,t,x0x);
 figure(6)
 plot(t,y4)
+title('x(t) with LQG')
+xlabel('Time (s)')
+legend('x(t)')
 
 
 
