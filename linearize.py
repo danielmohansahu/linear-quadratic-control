@@ -44,6 +44,7 @@ IC = np.array([0,1e-3,0,5e-5,0,1e-4])
 # R = 0.001
 Q = np.diag([1,0.5,1000,500,1000,500])
 R = 1.0e-4
+STEP = 0.1
 
 if __name__ == "__main__":
     ###############################################################################################
@@ -214,40 +215,61 @@ if __name__ == "__main__":
     observer_poles = np.array([np.complex(10*sym.re(eig), sym.im(eig)) for eig in eigenvalues])
 
     # obtain observers for each output vector
-    fig,ax = plt.subplots(nrows=len(Observables), ncols=2, sharex=True, sharey=True)
-    fig.suptitle("Closed Loop Observer Response")
     for i,C in enumerate(Observables):
+        # initialize plots
+        fig = plt.figure("Closed Loop Observer Response C_{}".format(i+1))
+
         # place poles of A-LC an order of magnitude farther left than the controller poles
         C = np.array(C, dtype=np.float32)
         L = scipy.signal.place_poles(A.T, C.T, observer_poles).gain_matrix.T
         print("Found observer for potential C matrix #{}".format(i+1))
 
-        # simulate the response
+        # simulate the linear response
         Ao = np.block([[A-B@K, B@K],[np.zeros(A.shape),A-L@C]])
         Bo = np.block([[B],[np.zeros(B.shape)]])
         Co = np.block([[C, np.zeros(C.shape)]])
         SYS_CLO = scipy.signal.StateSpace(Ao,Bo,Co)
-        T,Y,X = scipy.signal.lsim(SYS_CLO, None, Times, np.hstack((IC,IC)))
+
+        # initial condition response
+        Tic,Yic,Xic = scipy.signal.lsim(SYS_CLO, None, Times, np.hstack((IC,IC)))
+
+        # unit step response
+        U = np.ones(Times.shape)*STEP
+        U[:1000] *= 0
+        Ts,Ys,Xs = scipy.signal.lsim(SYS_CLO, U, Times, np.hstack((np.zeros(IC.shape),np.zeros(IC.shape))))
 
         # estimation is the difference between actual state and estimation error
-        X_est = X[:,:6]-X[:,6:]
+        Xic_est = Xic[:,:6]-Xic[:,6:]
+        Xs_est = Xs[:,:6]-Xs[:,6:]
 
-        # plot response
-        fig.add_subplot(len(Observables),2,2*(i+1)-1, frameon=False)
-        plt.title("Linear Response, C_{}".format(i+1))
-        plt.plot(T,X[:,0], 'b')
-        plt.plot(T,X_est[:,0], '--b')
-        plt.plot(T,X[:,2], 'r')
-        plt.plot(T,X_est[:,2], '--r')
-        plt.plot(T,X[:,4], 'k')
-        plt.plot(T,X_est[:,4], '--k')
+        # plot linear initial condition response
+        plt.subplot(221)
+        plt.title("Linear IC Response")
+        plt.plot(Tic,Xic[:,0], 'b')
+        plt.plot(Tic,Xic_est[:,0], '--b')
+        plt.plot(Tic,Xic[:,2], 'r')
+        plt.plot(Tic,Xic_est[:,2], '--r')
+        plt.plot(Tic,Xic[:,4], 'k')
+        plt.plot(Tic,Xic_est[:,4], '--k')
         plt.grid(True)
         plt.legend(["X","X_obs","theta1","theta1_obs","theta2","theta2_obs"],loc=1)
-        plt.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
+        plt.xlim(T[0],T[-1])
+
+        # plot linear step response
+        plt.subplot(223)
+        plt.title("Linear Step Response")
+        plt.plot(Ts,Xs[:,0], 'b')
+        plt.plot(Ts,Xs_est[:,0], '--b')
+        plt.plot(Ts,Xs[:,2], 'r')
+        plt.plot(Ts,Xs_est[:,2], '--r')
+        plt.plot(Ts,Xs[:,4], 'k')
+        plt.plot(Ts,Xs_est[:,4], '--k')
+        plt.grid(True)
+        plt.legend(["X","X_obs","theta1","theta1_obs","theta2","theta2_obs"],loc=1)
         plt.xlim(T[0],T[-1])
 
         # simulate the nonlinear response
-        def ODE(time, y):
+        def ODE(time, y, step_time):
             state = [
                 y[1],
                 G_subs[ddx](*y[:6]),
@@ -263,24 +285,43 @@ if __name__ == "__main__":
                 G_subs[ddt2](*y[6:])
             ]
             command = (B@K)@(np.array(y[6:])-np.array(y[:6]))
+            if time >= step_time:
+                command += (B*STEP).reshape(command.shape)
             observe = (L@C)@np.array(y[6:])
             return state + np.hstack((command, -observe))
 
-        resp = scipy.integrate.solve_ivp(ODE, [Times[0],Times[-1]], np.hstack((IC,IC)))
-        assert(resp.success)
+        # response to initial conditions
+        resp_ic = scipy.integrate.solve_ivp(ODE, [Times[0],Times[-1]], np.hstack((IC,IC)), args=(np.inf,))
+        assert(resp_ic.success)
 
-        # plot the results
-        fig.add_subplot(len(Observables),2,2*(i+1), frameon=False)
-        plt.title("Nonlinear Response, C_{}".format(i+1))
-        plt.plot(resp.t, resp.y[0,:], 'b')
-        plt.plot(resp.t, resp.y[0,:]-resp.y[6,:], '--b')
-        plt.plot(resp.t, resp.y[2,:], 'r')
-        plt.plot(resp.t, resp.y[2,:]-resp.y[8,:], '--r')
-        plt.plot(resp.t, resp.y[4,:], 'k')
-        plt.plot(resp.t, resp.y[4,:]-resp.y[10,:], '--k')
+        # response to step input
+        resp_s = scipy.integrate.solve_ivp(ODE, [Times[0],Times[-1]], np.hstack((np.zeros(IC.shape),np.zeros(IC.shape))), args=(1.0,))
+        assert(resp_s.success)
+
+        # plot the initial condition results
+        plt.subplot(222)
+        plt.title("Nonlinear IC Response")
+        plt.plot(resp_ic.t, resp_ic.y[0,:], 'b')
+        plt.plot(resp_ic.t, resp_ic.y[0,:]-resp_ic.y[6,:], '--b')
+        plt.plot(resp_ic.t, resp_ic.y[2,:], 'r')
+        plt.plot(resp_ic.t, resp_ic.y[2,:]-resp_ic.y[8,:], '--r')
+        plt.plot(resp_ic.t, resp_ic.y[4,:], 'k')
+        plt.plot(resp_ic.t, resp_ic.y[4,:]-resp_ic.y[10,:], '--k')
         plt.grid(True)
         plt.legend(["X","X_obs","theta1","theta1_obs","theta2","theta2_obs"],loc=1)
-        plt.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
+        plt.xlim(T[0],T[-1])
+
+        # plot the step response results
+        plt.subplot(224)
+        plt.title("Nonlinear Step Response")
+        plt.plot(resp_s.t, resp_s.y[0,:], 'b')
+        plt.plot(resp_s.t, resp_s.y[0,:]-resp_s.y[6,:], '--b')
+        plt.plot(resp_s.t, resp_s.y[2,:], 'r')
+        plt.plot(resp_s.t, resp_s.y[2,:]-resp_s.y[8,:], '--r')
+        plt.plot(resp_s.t, resp_s.y[4,:], 'k')
+        plt.plot(resp_s.t, resp_s.y[4,:]-resp_s.y[10,:], '--k')
+        plt.grid(True)
+        plt.legend(["X","X_obs","theta1","theta1_obs","theta2","theta2_obs"],loc=1)
         plt.xlim(T[0],T[-1])
 
     # plot
