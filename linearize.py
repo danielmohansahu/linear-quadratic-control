@@ -324,9 +324,29 @@ if __name__ == "__main__":
         plt.legend(["X","X_obs","theta1","theta1_obs","theta2","theta2_obs"],loc=1)
         plt.xlim(T[0],T[-1])
 
+
+        # plot an extra large version of the IC response
+        resp_lqg = scipy.integrate.solve_ivp(ODE, [Times[0],Times[-1]], np.hstack((IC*10,np.zeros(IC.shape))), args=(np.inf,))
+        plt.figure("LQG Response (C_{})".format(i+1))
+        plt.title("LQG Initial Condition Response")
+        plt.plot(resp_lqg.t, resp_lqg.y[0,:], 'b')
+        plt.plot(resp_lqg.t, resp_lqg.y[0,:]-resp_lqg.y[6,:], '--b')
+        plt.plot(resp_lqg.t, resp_lqg.y[2,:], 'r')
+        plt.plot(resp_lqg.t, resp_lqg.y[2,:]-resp_lqg.y[8,:], '--r')
+        plt.plot(resp_lqg.t, resp_lqg.y[4,:], 'k')
+        plt.plot(resp_lqg.t, resp_lqg.y[4,:]-resp_lqg.y[10,:], '--k')
+        plt.grid(True)
+        plt.legend(["X","X_obs","theta1","theta1_obs","theta2","theta2_obs"])
+        plt.xlim(T[0],T[-1])
+
     # plot
     plt.show()
 
+    ###############################################################################################
+    ######################################## Part G ###############################################
+    ###############################################################################################
+
+    # uses a similar plot to the ones above
 
     ###############################################################################################
     ##################################### Interaction #############################################
